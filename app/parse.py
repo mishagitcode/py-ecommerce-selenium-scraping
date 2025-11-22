@@ -97,12 +97,6 @@ def get_page_products(input_url: str) -> [Product]:
         except NoSuchElementException:
             break
 
-        except ElementClickInterceptedException:
-            break
-
-        except ElementNotInteractableException:
-            break
-
     soup = BeautifulSoup(driver.page_source, "html.parser")
     products = soup.select(".card-body")
     return [parse_single_product(p) for p in products]
