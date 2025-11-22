@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass, fields, astuple
 
 from selenium import webdriver
+from selenium.common import NoSuchElementException, ElementNotInteractableException, ElementClickInterceptedException
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from urllib.parse import urljoin
@@ -58,7 +59,7 @@ def parse_single_product(product: Tag) -> Product:
         title=product.select_one(".title")["title"],
         description=product.select_one(".description").text,
         price=float(product.select_one(".price").text.replace("$", "")),
-        rating=int(product.select_one("p[data-rating]")["data-rating"]),
+        rating=int(len(product.select("span.ws-icon-star"))),
         num_of_reviews=int(product.select_one(".review-count").text.split()[0])
     )
 
@@ -67,7 +68,7 @@ def get_page_products(input_url: str) -> [Product]:
     text = requests.get(input_url).content
     soup = BeautifulSoup(text, "html.parser")
 
-    show_more_button = soup.select_one("a.btn.btn-lg.btn-block")
+    show_more_button = soup.select_one(".btn")
 
     if not show_more_button:
         products = soup.select(".card-body")
@@ -75,10 +76,32 @@ def get_page_products(input_url: str) -> [Product]:
 
     driver = get_driver()
     driver.get(input_url)
-    element = driver.find_element(By.CLASS_NAME, "btn")
 
-    while element:
-        driver.execute_script("arguments[0].style.display = 'none';", element)
+    try:
+        driver.find_element(By.CLASS_NAME, "acceptCookies").click()
+    except NoSuchElementException:
+        pass
+    except ElementNotInteractableException:
+        pass
+
+    while True:
+        try:
+            element_more = driver.find_element(By.CLASS_NAME, "btn")
+
+            driver.execute_script("arguments[0].scrollIntoView(true);", element_more)
+            time.sleep(0.3)
+
+            element_more.click()
+            time.sleep(0.5)
+
+        except NoSuchElementException:
+            break
+
+        except ElementClickInterceptedException:
+            break
+
+        except ElementNotInteractableException:
+            break
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
     products = soup.select(".card-body")
